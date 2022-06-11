@@ -136,8 +136,8 @@ async function game() {
   }
 
   async function loadAnimatedSprite(path: string, name: string): Promise<PIXI.Texture[]> {
-    const texture = PIXI.Texture.from(`../public/sprites/${path}${name}/${name}.png`)
-    const texture_jsn = await (await fetch(`../public/sprites/${path}${name}/${name}.json`)).json()
+    const texture = PIXI.Texture.from(`../sprites/${path}${name}/${name}.png`)
+    const texture_jsn = await (await fetch(`../sprites/${path}${name}/${name}.json`)).json()
 
     const sprite_sheet = new PIXI.Spritesheet(texture, texture_jsn);
     sprite_sheet.parse(() => console.log("finished parsing " + name))
