@@ -369,6 +369,11 @@ async function game() {
       lineContainer.addChild(player_circ)
 
       app.stage.addChild(lineContainer)
+
+      if (collision_detected) {
+        player.vel.x = -player.vel.x
+        player.vel.y = -player.vel.y
+      }
     }
   }
 
