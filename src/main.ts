@@ -11,17 +11,17 @@ class Vec {
     this.x = x
     this.y = y
   }
-  public add(vec: Vec) {
-    this.x += vec.x
-    this.y += vec.y
+  public add(vec: Vec): Vec {
+    return new Vec(this.x + vec.x, this.y + vec.y)
   }
-  public sub(vec: Vec) {
-    this.x -= vec.x
-    this.y -= vec.y
+  public sub(vec: Vec): Vec {
+    return new Vec(this.x - vec.x, this.y - vec.y)
   }
-  public mul(vec: Vec) {
-    this.x *= vec.x
-    this.y *= vec.y
+  public mul(vec: Vec): Vec {
+    return new Vec(this.x * vec.x, this.y * vec.y)
+  }
+  public dist(vec: Vec): number {
+    return Math.sqrt(Math.pow(this.x - vec.x, 2) + Math.pow(this.y - vec.y, 2))
   }
 }
 
@@ -78,6 +78,8 @@ async function game() {
   const canvas_wrapper = document.getElementById("canvas")
   canvas_wrapper.innerHTML = ""
   canvas_wrapper.appendChild(app.view)
+
+  const static_circle_colliders: Vec[] = []
 
   type Tile = {
     sprite: PIXI.Sprite,
@@ -231,6 +233,7 @@ async function game() {
             sprite: sprite
           })
           app.stage.addChild(sprite);
+          static_circle_colliders.push(new Vec(sprite.x + sprite.width / 2, sprite.y + sprite.height / 2))
         }
       } else {
         let sprite = new PIXI.AnimatedSprite(water_texture_wrapper.imgs)
@@ -271,6 +274,7 @@ async function game() {
     keyboard[e.key] = false
   })
 
+  let lineContainer = new PIXI.Container()
   // create player (death)
   const spawnlocation = random_land_spots[Math.floor(rd() * random_land_spots.length)]
   const player = {
@@ -286,11 +290,10 @@ async function game() {
     f_attack_sprite: new PIXI.AnimatedSprite(death_f_attack_texture_array),
     active_sprite: null,
     moveTo: (vec: Vec) => {
-      player.pos.add(vec)
+      player.pos = player.pos.add(vec)
     },
     moveBy: (vec: Vec) => {
-      player.vel.add(vec)
-
+      player.vel = player.vel.add(vec)
       // apply vel cap
       if (player.vel.x > PLAYER_VELOCITY_CAP) player.vel.x = PLAYER_VELOCITY_CAP
       if (player.vel.y > PLAYER_VELOCITY_CAP) player.vel.y = PLAYER_VELOCITY_CAP
@@ -308,7 +311,6 @@ async function game() {
     init: () => {
       player.setActiveAnim("idle_sprite")
       player.draw()
-
       player.active_sprite.animationSpeed = PLAYER_ANIMATION_SPEED
       player.active_sprite.play()
     },
@@ -339,7 +341,34 @@ async function game() {
       }
     },
     update: () => {
-      player.pos.add(player.vel)
+      player.pos = player.pos.add(player.vel)
+
+      app.stage.removeChild(lineContainer)
+      lineContainer = new PIXI.Container()
+
+      let collision_detected = false
+      static_circle_colliders.forEach(vec => {
+        let line = new PIXI.Graphics();
+        lineContainer.addChild(line);
+        let color: number
+        // calc dist
+        if (vec.dist(player.pos.add(player.size.mul(new Vec(0.5, 0.5)))) < 80) {
+          color = 0xff0000
+          collision_detected = true
+        }
+        else color = 0xffffff
+        // Draw the line (endPoint should be relative to myGraph's position)
+        line.lineStyle(1, color)
+          .moveTo(player.pos.x + player.size.x / 2, player.pos.y + player.size.y / 2)
+          .lineTo(vec.x, vec.y);
+      })
+      let player_circ = new PIXI.Graphics()
+      player_circ.lineStyle(2, collision_detected ? 0xff0000 : 0xffffff, 1);
+      player_circ.drawCircle(player.pos.x + player.size.x / 2, player.pos.y + player.size.y / 2, 40);
+      player_circ.endFill();
+      lineContainer.addChild(player_circ)
+
+      app.stage.addChild(lineContainer)
     }
   }
 
@@ -388,6 +417,19 @@ async function game() {
     if (!player.attacking) player.keyboardUpdate()
   }, 1000 / KEYBOARD_UPDATES_PS)
 
+  function collision_debug() {
+    // debug collisions
+    // draw circles
+    static_circle_colliders.forEach(vec => {
+      const circ = new PIXI.Graphics()
+      circ.lineStyle(2, 0xff0000, 1);
+      circ.drawCircle(vec.x, vec.y, 40);
+      circ.endFill();
+      app.stage.addChild(circ)
+    })
+  }
+
+  collision_debug()
   player.init()
 
   app.ticker.add((delta: number) => {
