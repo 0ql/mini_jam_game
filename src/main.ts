@@ -78,8 +78,8 @@ async function game() {
     sprite: PIXI.Sprite,
   }
 
-  let texture = PIXI.Texture.from("../public/sprites/death/death idle.png")
-  const jsn = await (await fetch("../public/sprites/death/death idle.json")).json()
+  let texture = PIXI.Texture.from("../sprites/death/death idle.png")
+  const jsn = await (await fetch("../sprites/death/death idle.json")).json()
 
   // let sheet = PIXI.Loader.shared.resources["../DeathIdle/death idle.json"].spritesheet;
   const dude_sheet = new PIXI.Spritesheet(texture, jsn);
