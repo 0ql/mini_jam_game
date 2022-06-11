@@ -59,6 +59,7 @@ async function game() {
   const PLAYER_DRAG_CONSTANT = 1.4
   const PLAYER_VELOCITY_CAP = 4
   const PLAYER_ACCELERATION = 2.8
+  const PLAYER_ATTACK_ANIMATION_SPEED = 0.3
 
   // KEYBOARD
   const KEYBOARD_UPDATES_PS = 10
@@ -253,6 +254,7 @@ async function game() {
   const death_run_b_texture_array = await loadAnimatedSprite("death/", "run_b")
   const death_run_l_texture_array = await loadAnimatedSprite("death/", "run_r")
   const death_run_r_texture_array = await loadAnimatedSprite("death/", "run_l")
+  const death_f_attack_texture_array = await loadAnimatedSprite("death/", "f_attack")
 
   // keyboard events
   const keyboard = {
@@ -260,6 +262,7 @@ async function game() {
     a: false,
     s: false,
     d: false,
+    space: false,
   }
   document.addEventListener("keydown", e => {
     keyboard[e.key] = true
@@ -274,11 +277,13 @@ async function game() {
     pos: new Vec(spawnlocation.x * PLAYER_W, spawnlocation.y * PLAYER_H),
     size: new Vec(PLAYER_W, PLAYER_H),
     vel: new Vec(0, 0),
+    attacking: false,
     idle_sprite: new PIXI.AnimatedSprite(death_idle_texture_array),
     run_f_sprite: new PIXI.AnimatedSprite(death_run_f_texture_array),
     run_r_sprite: new PIXI.AnimatedSprite(death_run_r_texture_array),
     run_l_sprite: new PIXI.AnimatedSprite(death_run_l_texture_array),
     run_b_sprite: new PIXI.AnimatedSprite(death_run_b_texture_array),
+    f_attack_sprite: new PIXI.AnimatedSprite(death_f_attack_texture_array),
     active_sprite: null,
     moveTo: (vec: Vec) => {
       player.pos.add(vec)
@@ -297,6 +302,7 @@ async function game() {
       player.active_sprite = player[name]
       app.stage.addChild(player.active_sprite)
       player.active_sprite.animationSpeed = PLAYER_ANIMATION_SPEED
+      player.active_sprite.loop = true
       player.active_sprite.play()
     },
     init: () => {
@@ -317,6 +323,20 @@ async function game() {
       if (keyboard.a) player.moveBy(new Vec(-PLAYER_ACCELERATION, 0))
       if (keyboard.s) player.moveBy(new Vec(0, PLAYER_ACCELERATION))
       if (keyboard.d) player.moveBy(new Vec(PLAYER_ACCELERATION, 0))
+      if (keyboard[" "]) {
+        player.attacking = true
+        app.stage.removeChild(player.active_sprite)
+        player.active_sprite = player.f_attack_sprite
+        player.active_sprite.loop = false
+        player.active_sprite.animationSpeed = PLAYER_ATTACK_ANIMATION_SPEED
+        player.active_sprite.onComplete = () => {
+          app.stage.removeChild(player.active_sprite)
+          player.attacking = false
+          player.setActiveAnim("idle_sprite")
+        }
+        app.stage.addChild(player.active_sprite)
+        player.active_sprite.gotoAndPlay(0)
+      }
     },
     update: () => {
       player.pos.add(player.vel)
@@ -346,26 +366,26 @@ async function game() {
     if (player.vel.x > 0) {
       if (player.vel.x < PLAYER_DRAG_CONSTANT) player.vel.x = 0
       else player.vel.x -= PLAYER_DRAG_CONSTANT
-      if (player.active_sprite !== player.run_l_sprite) player.setActiveAnim("run_l_sprite")
+      if (player.active_sprite !== player.run_l_sprite && !player.attacking) player.setActiveAnim("run_l_sprite")
     }
     if (player.vel.y > 0) {
       if (player.vel.y < PLAYER_DRAG_CONSTANT) player.vel.y = 0
       else player.vel.y -= PLAYER_DRAG_CONSTANT
-      if (player.active_sprite !== player.run_f_sprite) player.setActiveAnim("run_f_sprite")
+      if (player.active_sprite !== player.run_f_sprite && !player.attacking) player.setActiveAnim("run_f_sprite")
     }
     if (player.vel.x < 0) {
       if (Math.abs(player.vel.x) < PLAYER_DRAG_CONSTANT) player.vel.x = 0
       else player.vel.x += PLAYER_DRAG_CONSTANT
-      if (player.active_sprite !== player.run_r_sprite) player.setActiveAnim("run_r_sprite")
+      if (player.active_sprite !== player.run_r_sprite && !player.attacking) player.setActiveAnim("run_r_sprite")
     }
     if (player.vel.y < 0) {
       if (Math.abs(player.vel.y) < PLAYER_DRAG_CONSTANT) player.vel.y = 0
       else player.vel.y += PLAYER_DRAG_CONSTANT
-      if (player.active_sprite !== player.run_b_sprite) player.setActiveAnim("run_b_sprite")
+      if (player.active_sprite !== player.run_b_sprite && !player.attacking) player.setActiveAnim("run_b_sprite")
     }
-    if (player.vel.x === 0 && player.vel.y === 0 && player.active_sprite !== player.idle_sprite) player.setActiveAnim("idle_sprite")
+    if (player.vel.x === 0 && player.vel.y === 0 && player.active_sprite !== player.idle_sprite && !player.attacking) player.setActiveAnim("idle_sprite")
 
-    player.keyboardUpdate()
+    if (!player.attacking) player.keyboardUpdate()
   }, 1000 / KEYBOARD_UPDATES_PS)
 
   player.init()
