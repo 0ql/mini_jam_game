@@ -44,24 +44,24 @@ export default svelteApp
 async function game() {
   PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST
 
-  const X_TILES = 30
-  const Y_TILES = 20
+  const X_TILES = 12
+  const Y_TILES = 12
 
-  const TILE_WIDTH = 40
-  const TILE_HEIGHT = 40
+  const TILE_WIDTH = 70
+  const TILE_HEIGHT = 70
 
   const ANIMATION_SPEED = 0.03
 
   // PLAYER
-  const PLAYER_W = 40
-  const PLAYER_H = 40
+  const PLAYER_W = 70
+  const PLAYER_H = 70
   const PLAYER_ANIMATION_SPEED = 0.05
   const PLAYER_DRAG_CONSTANT = 0.05
   const PLAYER_VELOCITY_CAP = 4
 
   // TERRAIN
   const RANDOM_LAND_SPOTS_COUNT = 4
-  const MAX_TILE_SCORE_TO_BE_LAND = 60
+  const MAX_TILE_SCORE_TO_BE_LAND = 30
 
   const app = new PIXI.Application({
     width: X_TILES * TILE_WIDTH,
@@ -77,13 +77,6 @@ async function game() {
   type Tile = {
     sprite: PIXI.Sprite,
   }
-
-  let texture = PIXI.Texture.from("../sprites/death/death idle.png")
-  const jsn = await (await fetch("../sprites/death/death idle.json")).json()
-
-  // let sheet = PIXI.Loader.shared.resources["../DeathIdle/death idle.json"].spritesheet;
-  const dude_sheet = new PIXI.Spritesheet(texture, jsn);
-  dude_sheet.parse(() => console.log('Spritesheet ready to use!'));
 
   const rd = () => Math.random()
 
@@ -128,17 +121,28 @@ async function game() {
     if (opts.animated === false && opts.amount > 1) {
       throw new Error("Non Animated Sprites can only have an amount of one.")
     }
-
     let res: TextureWrapper = {
       animated: opts.animated,
       imgs: []
     }
-
     for (let i = 0; i < opts.amount; i++) {
       res.imgs.push(app.renderer.generateTexture(createRandTexture(opts.random_texture_opts)))
     }
-
     return res
+  }
+
+  async function loadAnimatedSprite(dir_name: string): Promise<PIXI.Texture[]> {
+    const texture = PIXI.Texture.from("../sprites/" + dir_name + "/" + dir_name + ".png")
+    const texture_jsn = await (await fetch("../sprites/" + dir_name + "/" + dir_name + ".json")).json()
+    const sprite_sheet = new PIXI.Spritesheet(texture, texture_jsn);
+    sprite_sheet.parse(() => console.log("finished parsing " + dir_name))
+    const texture_array: PIXI.Texture[] = [];
+    const texture_array_names = Object.keys(sprite_sheet.textures);
+    for (let i = 0; i < texture_array_names.length; i++) {
+      let texture = PIXI.Texture.from(texture_array_names[i]);
+      texture_array.push(texture);
+    };
+    return texture_array
   }
 
   let water_texture_wrapper = createRandTextureWrapper({
@@ -174,6 +178,8 @@ async function game() {
     }
   })
 
+  const beach_chair_texture_array = await loadAnimatedSprite("beach_chair")
+
   // pick random spots on grid and calc dist
   let random_land_spots: {
     x: number
@@ -191,52 +197,54 @@ async function game() {
   for (let y = 0; y < Y_TILES; y++) {
     const row: Tile[] = []
     for (let x = 0; x < X_TILES; x++) {
-
       let score = 0
       // calcule how close to random land spot
       random_land_spots.forEach(spot => {
         score += Math.abs(spot.x - x) + Math.abs(spot.y - y)
       })
-
       if (score > MAX_TILE_SCORE_TO_BE_LAND) {
         let sprite = new PIXI.Sprite(sand_texture_wrapper.imgs[0])
-
         sprite.x = x * TILE_WIDTH
         sprite.y = y * TILE_HEIGHT
         sprite.width = TILE_WIDTH
         sprite.height = TILE_HEIGHT
-
         row.push({
           sprite: sprite
         })
         app.stage.addChild(sprite);
+
+        if (rd() > 0.95) {
+          let sprite = new PIXI.AnimatedSprite(beach_chair_texture_array)
+          sprite.x = x * TILE_WIDTH
+          sprite.y = y * TILE_HEIGHT
+          sprite.width = TILE_WIDTH
+          sprite.height = TILE_HEIGHT
+          sprite.animationSpeed = ANIMATION_SPEED
+          sprite.play()
+          row.push({
+            sprite: sprite
+          })
+          app.stage.addChild(sprite);
+        }
       } else {
         let sprite = new PIXI.AnimatedSprite(water_texture_wrapper.imgs)
-
         sprite.x = x * TILE_WIDTH
         sprite.y = y * TILE_HEIGHT
         sprite.width = TILE_WIDTH
         sprite.height = TILE_HEIGHT
         sprite.animationSpeed = ANIMATION_SPEED
         sprite.play()
-
         row.push({
           sprite: sprite
         })
         app.stage.addChild(sprite);
       }
     }
-
     grid.push(row)
   }
 
-  // make death idle texture array
-  let death_idle_texture_array = [];
-  let death_idle_texture_array_names = Object.keys(dude_sheet.textures);
-  for (let i = 0; i < death_idle_texture_array_names.length; i++) {
-    let texture = PIXI.Texture.from(death_idle_texture_array_names[i]);
-    death_idle_texture_array.push(texture);
-  };
+  const death_idle_texture_array = await loadAnimatedSprite("death")
+  const death_run_forward_texture_array = await loadAnimatedSprite("run_forward")
 
   // keyboard events
   const keyboard = {
@@ -259,6 +267,8 @@ async function game() {
     size: new Vec(PLAYER_W, PLAYER_H),
     vel: new Vec(0, 0),
     idle_sprite: new PIXI.AnimatedSprite(death_idle_texture_array),
+    run_forward_sprite: new PIXI.AnimatedSprite(death_run_forward_texture_array),
+    active_sprite: null,
     moveTo: (vec: Vec) => {
       player.pos.add(vec)
     },
@@ -271,19 +281,25 @@ async function game() {
       if (player.vel.x < -PLAYER_VELOCITY_CAP) player.vel.x = -PLAYER_VELOCITY_CAP
       if (player.vel.y < -PLAYER_VELOCITY_CAP) player.vel.y = -PLAYER_VELOCITY_CAP
     },
+    setActiveAnim: (name: string) => {
+      app.stage.removeChild(player.active_sprite)
+      player.active_sprite = player[name]
+      app.stage.addChild(player.active_sprite)
+      player.active_sprite.animationSpeed = PLAYER_ANIMATION_SPEED
+      player.active_sprite.play()
+    },
     init: () => {
+      player.setActiveAnim("idle_sprite")
       player.draw()
 
-      player.idle_sprite.animationSpeed = PLAYER_ANIMATION_SPEED
-      player.idle_sprite.play()
-
-      app.stage.addChild(player.idle_sprite)
+      player.active_sprite.animationSpeed = PLAYER_ANIMATION_SPEED
+      player.active_sprite.play()
     },
     draw: () => {
-      player.idle_sprite.x = player.pos.x
-      player.idle_sprite.y = player.pos.y
-      player.idle_sprite.width = player.size.x
-      player.idle_sprite.height = player.size.y
+      player.active_sprite.x = player.pos.x
+      player.active_sprite.y = player.pos.y
+      player.active_sprite.width = player.size.x
+      player.active_sprite.height = player.size.y
     },
     keyboardUpdate: () => {
       if (keyboard.w) player.moveBy(new Vec(0, -1))
@@ -296,18 +312,22 @@ async function game() {
       if (player.vel.x > 0) {
         if (player.vel.x < PLAYER_DRAG_CONSTANT) player.vel.x = 0
         else player.vel.x -= PLAYER_DRAG_CONSTANT
+        if (player.active_sprite !== player.idle_sprite) player.setActiveAnim("idle_sprite")
       }
       if (player.vel.y > 0) {
         if (player.vel.y < PLAYER_DRAG_CONSTANT) player.vel.y = 0
         else player.vel.y -= PLAYER_DRAG_CONSTANT
+        if (player.active_sprite !== player.run_forward_sprite) player.setActiveAnim("run_forward_sprite")
       }
       if (player.vel.x < 0) {
         if (Math.abs(player.vel.x) < PLAYER_DRAG_CONSTANT) player.vel.x = 0
         else player.vel.x += PLAYER_DRAG_CONSTANT
+        if (player.active_sprite !== player.idle_sprite) player.setActiveAnim("idle_sprite")
       }
       if (player.vel.y < 0) {
         if (Math.abs(player.vel.y) < PLAYER_DRAG_CONSTANT) player.vel.y = 0
         else player.vel.y += PLAYER_DRAG_CONSTANT
+        if (player.active_sprite !== player.run_forward_sprite) player.setActiveAnim("run_forward_sprite")
       }
 
       player.pos.add(player.vel)
