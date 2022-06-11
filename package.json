@@ -24,6 +24,7 @@
     "vite": "^2.9.9"
   },
   "dependencies": {
+    "@pixi/particle-emitter": "^5.0.7",
     "pixi.js": "^6.4.2"
   }
 }

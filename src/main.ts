@@ -56,8 +56,12 @@ async function game() {
   const PLAYER_W = 70
   const PLAYER_H = 70
   const PLAYER_ANIMATION_SPEED = 0.05
-  const PLAYER_DRAG_CONSTANT = 0.05
+  const PLAYER_DRAG_CONSTANT = 1.4
   const PLAYER_VELOCITY_CAP = 4
+  const PLAYER_ACCELERATION = 2.8
+
+  // KEYBOARD
+  const KEYBOARD_UPDATES_PS = 10
 
   // TERRAIN
   const RANDOM_LAND_SPOTS_COUNT = 4
@@ -131,11 +135,12 @@ async function game() {
     return res
   }
 
-  async function loadAnimatedSprite(dir_name: string): Promise<PIXI.Texture[]> {
-    const texture = PIXI.Texture.from("../sprites/" + dir_name + "/" + dir_name + ".png")
-    const texture_jsn = await (await fetch("../sprites/" + dir_name + "/" + dir_name + ".json")).json()
+  async function loadAnimatedSprite(path: string, name: string): Promise<PIXI.Texture[]> {
+    const texture = PIXI.Texture.from(`../public/sprites/${path}${name}/${name}.png`)
+    const texture_jsn = await (await fetch(`../public/sprites/${path}${name}/${name}.json`)).json()
+
     const sprite_sheet = new PIXI.Spritesheet(texture, texture_jsn);
-    sprite_sheet.parse(() => console.log("finished parsing " + dir_name))
+    sprite_sheet.parse(() => console.log("finished parsing " + name))
     const texture_array: PIXI.Texture[] = [];
     const texture_array_names = Object.keys(sprite_sheet.textures);
     for (let i = 0; i < texture_array_names.length; i++) {
@@ -178,7 +183,7 @@ async function game() {
     }
   })
 
-  const beach_chair_texture_array = await loadAnimatedSprite("beach_chair")
+  const beach_chair_texture_array = await loadAnimatedSprite("", "beach_chair")
 
   // pick random spots on grid and calc dist
   let random_land_spots: {
@@ -243,8 +248,11 @@ async function game() {
     grid.push(row)
   }
 
-  const death_idle_texture_array = await loadAnimatedSprite("death")
-  const death_run_forward_texture_array = await loadAnimatedSprite("run_forward")
+  const death_idle_texture_array = await loadAnimatedSprite("death/", "idle")
+  const death_run_f_texture_array = await loadAnimatedSprite("death/", "run_f")
+  const death_run_b_texture_array = await loadAnimatedSprite("death/", "run_b")
+  const death_run_l_texture_array = await loadAnimatedSprite("death/", "run_r")
+  const death_run_r_texture_array = await loadAnimatedSprite("death/", "run_l")
 
   // keyboard events
   const keyboard = {
@@ -267,7 +275,10 @@ async function game() {
     size: new Vec(PLAYER_W, PLAYER_H),
     vel: new Vec(0, 0),
     idle_sprite: new PIXI.AnimatedSprite(death_idle_texture_array),
-    run_forward_sprite: new PIXI.AnimatedSprite(death_run_forward_texture_array),
+    run_f_sprite: new PIXI.AnimatedSprite(death_run_f_texture_array),
+    run_r_sprite: new PIXI.AnimatedSprite(death_run_r_texture_array),
+    run_l_sprite: new PIXI.AnimatedSprite(death_run_l_texture_array),
+    run_b_sprite: new PIXI.AnimatedSprite(death_run_b_texture_array),
     active_sprite: null,
     moveTo: (vec: Vec) => {
       player.pos.add(vec)
@@ -302,34 +313,12 @@ async function game() {
       player.active_sprite.height = player.size.y
     },
     keyboardUpdate: () => {
-      if (keyboard.w) player.moveBy(new Vec(0, -1))
-      if (keyboard.a) player.moveBy(new Vec(-1, 0))
-      if (keyboard.s) player.moveBy(new Vec(0, 1))
-      if (keyboard.d) player.moveBy(new Vec(1, 0))
+      if (keyboard.w) player.moveBy(new Vec(0, -PLAYER_ACCELERATION))
+      if (keyboard.a) player.moveBy(new Vec(-PLAYER_ACCELERATION, 0))
+      if (keyboard.s) player.moveBy(new Vec(0, PLAYER_ACCELERATION))
+      if (keyboard.d) player.moveBy(new Vec(PLAYER_ACCELERATION, 0))
     },
     update: () => {
-      // apply natural slow down
-      if (player.vel.x > 0) {
-        if (player.vel.x < PLAYER_DRAG_CONSTANT) player.vel.x = 0
-        else player.vel.x -= PLAYER_DRAG_CONSTANT
-        if (player.active_sprite !== player.idle_sprite) player.setActiveAnim("idle_sprite")
-      }
-      if (player.vel.y > 0) {
-        if (player.vel.y < PLAYER_DRAG_CONSTANT) player.vel.y = 0
-        else player.vel.y -= PLAYER_DRAG_CONSTANT
-        if (player.active_sprite !== player.run_forward_sprite) player.setActiveAnim("run_forward_sprite")
-      }
-      if (player.vel.x < 0) {
-        if (Math.abs(player.vel.x) < PLAYER_DRAG_CONSTANT) player.vel.x = 0
-        else player.vel.x += PLAYER_DRAG_CONSTANT
-        if (player.active_sprite !== player.idle_sprite) player.setActiveAnim("idle_sprite")
-      }
-      if (player.vel.y < 0) {
-        if (Math.abs(player.vel.y) < PLAYER_DRAG_CONSTANT) player.vel.y = 0
-        else player.vel.y += PLAYER_DRAG_CONSTANT
-        if (player.active_sprite !== player.run_forward_sprite) player.setActiveAnim("run_forward_sprite")
-      }
-
       player.pos.add(player.vel)
     }
   }
@@ -339,16 +328,45 @@ async function game() {
   setInterval(() => {
     state.update((s) => {
       s.fps = ticks
-      s.debug.player.vel = player.vel
-      s.debug.player.pos = player.pos
       return s
     })
     ticks = 0
   }, 1000)
 
   setInterval(() => {
+    state.update((s) => {
+      s.debug.player.vel = player.vel
+      s.debug.player.pos = player.pos
+      return s
+    })
+  }, 200)
+
+  setInterval(() => {
+    // apply natural slow down
+    if (player.vel.x > 0) {
+      if (player.vel.x < PLAYER_DRAG_CONSTANT) player.vel.x = 0
+      else player.vel.x -= PLAYER_DRAG_CONSTANT
+      if (player.active_sprite !== player.run_l_sprite) player.setActiveAnim("run_l_sprite")
+    }
+    if (player.vel.y > 0) {
+      if (player.vel.y < PLAYER_DRAG_CONSTANT) player.vel.y = 0
+      else player.vel.y -= PLAYER_DRAG_CONSTANT
+      if (player.active_sprite !== player.run_f_sprite) player.setActiveAnim("run_f_sprite")
+    }
+    if (player.vel.x < 0) {
+      if (Math.abs(player.vel.x) < PLAYER_DRAG_CONSTANT) player.vel.x = 0
+      else player.vel.x += PLAYER_DRAG_CONSTANT
+      if (player.active_sprite !== player.run_r_sprite) player.setActiveAnim("run_r_sprite")
+    }
+    if (player.vel.y < 0) {
+      if (Math.abs(player.vel.y) < PLAYER_DRAG_CONSTANT) player.vel.y = 0
+      else player.vel.y += PLAYER_DRAG_CONSTANT
+      if (player.active_sprite !== player.run_b_sprite) player.setActiveAnim("run_b_sprite")
+    }
+    if (player.vel.x === 0 && player.vel.y === 0 && player.active_sprite !== player.idle_sprite) player.setActiveAnim("idle_sprite")
+
     player.keyboardUpdate()
-  }, 1000 / 5)
+  }, 1000 / KEYBOARD_UPDATES_PS)
 
   player.init()
 
