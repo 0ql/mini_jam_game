@@ -57,7 +57,8 @@ async function game() {
   // PLAYER
   const PLAYER_W = 70
   const PLAYER_H = 70
-  const PLAYER_ANIMATION_SPEED = 0.05
+  const PLAYER_ANIMATION_SPEED_IDLE = 0.05
+  const PLAYER_ANIMATION_SPEED_RUN = 0.2
   const PLAYER_DRAG_CONSTANT = 1.4
   const PLAYER_VELOCITY_CAP = 4
   const PLAYER_ACCELERATION = 2.8
@@ -325,20 +326,18 @@ async function game() {
       if (player.vel.x < -PLAYER_VELOCITY_CAP) player.vel.x = -PLAYER_VELOCITY_CAP
       if (player.vel.y < -PLAYER_VELOCITY_CAP) player.vel.y = -PLAYER_VELOCITY_CAP
     },
-    setActiveAnim: (name: string) => {
+    setActiveAnim: (name: string, animation_speed: number) => {
       player_container.removeChild(player.active_sprite)
       player.active_sprite = player[name]
       player_container.addChild(player.active_sprite)
-      player.active_sprite.animationSpeed = PLAYER_ANIMATION_SPEED
+      player.active_sprite.animationSpeed = animation_speed
       player.active_sprite.loop = true
       player.active_sprite.play()
     },
     init: () => {
       player_container.addChild(player.shadow_sprite)
-      player.setActiveAnim("idle_sprite")
+      player.setActiveAnim("idle_sprite", PLAYER_ANIMATION_SPEED_IDLE)
       player.draw()
-      player.active_sprite.animationSpeed = PLAYER_ANIMATION_SPEED
-      player.active_sprite.play()
     },
     draw: () => {
       player.shadow_sprite.x = player.pos.x + player.size.x / 4
@@ -362,7 +361,7 @@ async function game() {
         player.active_sprite.onComplete = () => {
           player_container.removeChild(player.active_sprite)
           player.attacking = false
-          player.setActiveAnim("idle_sprite")
+          player.setActiveAnim("idle_sprite", PLAYER_ANIMATION_SPEED_IDLE)
         }
         player_container.addChild(player.active_sprite)
         player.active_sprite.gotoAndPlay(0)
@@ -453,24 +452,24 @@ async function game() {
     if (player.vel.x > 0) {
       if (player.vel.x < PLAYER_DRAG_CONSTANT) player.vel.x = 0
       else player.vel.x -= PLAYER_DRAG_CONSTANT
-      if (player.active_sprite !== player.run_l_sprite && !player.attacking) player.setActiveAnim("run_l_sprite")
+      if (player.active_sprite !== player.run_l_sprite && !player.attacking) player.setActiveAnim("run_l_sprite", PLAYER_ANIMATION_SPEED_RUN)
     }
     if (player.vel.y > 0) {
       if (player.vel.y < PLAYER_DRAG_CONSTANT) player.vel.y = 0
       else player.vel.y -= PLAYER_DRAG_CONSTANT
-      if (player.active_sprite !== player.run_f_sprite && !player.attacking) player.setActiveAnim("run_f_sprite")
+      if (player.active_sprite !== player.run_f_sprite && !player.attacking) player.setActiveAnim("run_f_sprite", PLAYER_ANIMATION_SPEED_RUN)
     }
     if (player.vel.x < 0) {
       if (Math.abs(player.vel.x) < PLAYER_DRAG_CONSTANT) player.vel.x = 0
       else player.vel.x += PLAYER_DRAG_CONSTANT
-      if (player.active_sprite !== player.run_r_sprite && !player.attacking) player.setActiveAnim("run_r_sprite")
+      if (player.active_sprite !== player.run_r_sprite && !player.attacking) player.setActiveAnim("run_r_sprite", PLAYER_ANIMATION_SPEED_RUN)
     }
     if (player.vel.y < 0) {
       if (Math.abs(player.vel.y) < PLAYER_DRAG_CONSTANT) player.vel.y = 0
       else player.vel.y += PLAYER_DRAG_CONSTANT
-      if (player.active_sprite !== player.run_b_sprite && !player.attacking) player.setActiveAnim("run_b_sprite")
+      if (player.active_sprite !== player.run_b_sprite && !player.attacking) player.setActiveAnim("run_b_sprite", PLAYER_ANIMATION_SPEED_RUN)
     }
-    if (player.vel.x === 0 && player.vel.y === 0 && player.active_sprite !== player.idle_sprite && !player.attacking) player.setActiveAnim("idle_sprite")
+    if (player.vel.x === 0 && player.vel.y === 0 && player.active_sprite !== player.idle_sprite && !player.attacking) player.setActiveAnim("idle_sprite", PLAYER_ANIMATION_SPEED_IDLE)
 
     if (!player.attacking) player.keyboardUpdate()
   }, 1000 / KEYBOARD_UPDATES_PS)
