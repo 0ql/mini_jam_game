@@ -312,6 +312,7 @@ async function game() {
     public zombie_container: PIXI.Container
     public footprints_container: PIXI.Container
     public footprints_queue: PIXI.Sprite[]
+    public line_container: PIXI.Container
     public pos: Vec
     public size: Vec
     public vel: Vec
@@ -329,6 +330,7 @@ async function game() {
       this.size = size
       this.vel = vel
       this.zombie_container = new PIXI.Container()
+      this.line_container = new PIXI.Container()
       this.footprints_container = new PIXI.Container()
       this.footprints_queue = []
     }
@@ -352,7 +354,43 @@ async function game() {
     }
     update() {
       const next_pos = this.pos.add(this.vel)
-      this.pos = next_pos
+      let collision_detected = false
+      this.zombie_container.removeChild(this.line_container)
+      this.line_container = new PIXI.Container()
+      if (next_pos.x < 0 || next_pos.x + this.size.x > TILE_WIDTH * X_TILES || next_pos.y < 0 || next_pos.y + this.size.y > TILE_HEIGHT * Y_TILES) {
+        collision_detected = true
+      } else {
+        static_circle_colliders.forEach(vec => {
+          let color: number
+          // calc dist
+          if (vec.dist(next_pos.add(this.size.mul(new Vec(0.5, 0.5)))) < 80) {
+            color = 0xff0000
+            collision_detected = true
+          }
+          else color = 0xffffff
+          if (debug_on) {
+            let line = new PIXI.Graphics();
+            this.line_container.addChild(line);
+            line.lineStyle(1, color)
+              .moveTo(this.pos.x + this.size.x / 2, this.pos.y + this.size.y / 2)
+              .lineTo(vec.x, vec.y);
+          }
+        })
+      }
+      if (debug_on) {
+        let zombie_circ = new PIXI.Graphics()
+        zombie_circ.lineStyle(2, collision_detected ? 0xff0000 : 0xffffff, 1);
+        zombie_circ.drawCircle(this.pos.x + this.size.x / 2, this.pos.y + this.size.y / 2, 40);
+        zombie_circ.endFill();
+        this.line_container.addChild(zombie_circ)
+        let next_pos_circ = new PIXI.Graphics()
+        next_pos_circ.lineStyle(2, collision_detected ? 0xff0000 : 0xffffff, 1);
+        next_pos_circ.drawCircle(next_pos.x + this.size.x / 2, next_pos.y + this.size.y / 2, 40);
+        next_pos_circ.endFill();
+        this.line_container.addChild(next_pos_circ)
+      }
+      this.zombie_container.addChild(this.line_container)
+      if (!collision_detected) this.pos = next_pos
 
       // apply natural slow down
       if (this.vel.x > 0 && this.vel.x > this.vel.y) {
