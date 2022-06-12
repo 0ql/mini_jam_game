@@ -4,9 +4,11 @@
   import Navbar from "./navbar.svelte";
 </script>
 
-<main>
-  <Navbar />
-  <Debug />
+<main class="fixed h-screen w-screen overflow-hidden">
+  <div class="absolute w-full h-full">
+    <Navbar />
+    <Debug />
+  </div>
   <div
     class="flex justify-center items-center w-screen h-screen overflow-hidden"
     id="canvas"
@@ -19,5 +21,8 @@
     margin: 0;
     padding: 0;
     background-color: #5cbeff;
+  }
+  .ui-shadow {
+    box-shadow: 4px 4px rgba(0, 0, 0, 0.3);
   }
 </style>

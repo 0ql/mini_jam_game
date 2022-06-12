@@ -28,6 +28,7 @@ class Vec {
 export const state = writable({
   fps: 0,
   debug: {
+    show: false,
     player: {
       vel: new Vec(0, 0),
       pos: new Vec(0, 0)
@@ -178,10 +179,10 @@ async function game() {
       w: 16,
       h: 16,
       pixels: {
-        amount: 32,
+        amount: 100,
         w: 1,
         h: 1,
-        colors: [0xf7e67c]
+        colors: [0xf7e67c, 0xe3d36d, 0xe8d664, 0xf7e468]
       }
     }
   })
@@ -341,38 +342,45 @@ async function game() {
       }
     },
     update: () => {
-      player.pos = player.pos.add(player.vel)
+      const next_pos = player.pos.add(player.vel)
 
-      app.stage.removeChild(lineContainer)
+      collision_debug_container.removeChild(lineContainer)
       lineContainer = new PIXI.Container()
-
       let collision_detected = false
       static_circle_colliders.forEach(vec => {
-        let line = new PIXI.Graphics();
-        lineContainer.addChild(line);
         let color: number
         // calc dist
-        if (vec.dist(player.pos.add(player.size.mul(new Vec(0.5, 0.5)))) < 80) {
+        if (vec.dist(next_pos.add(player.size.mul(new Vec(0.5, 0.5)))) < 80) {
           color = 0xff0000
           collision_detected = true
         }
         else color = 0xffffff
-        // Draw the line (endPoint should be relative to myGraph's position)
-        line.lineStyle(1, color)
-          .moveTo(player.pos.x + player.size.x / 2, player.pos.y + player.size.y / 2)
-          .lineTo(vec.x, vec.y);
+
+        if (debug_on) {
+          let line = new PIXI.Graphics();
+          lineContainer.addChild(line);
+          line.lineStyle(1, color)
+            .moveTo(player.pos.x + player.size.x / 2, player.pos.y + player.size.y / 2)
+            .lineTo(vec.x, vec.y);
+        }
       })
-      let player_circ = new PIXI.Graphics()
-      player_circ.lineStyle(2, collision_detected ? 0xff0000 : 0xffffff, 1);
-      player_circ.drawCircle(player.pos.x + player.size.x / 2, player.pos.y + player.size.y / 2, 40);
-      player_circ.endFill();
-      lineContainer.addChild(player_circ)
+      if (debug_on) {
+        let player_circ = new PIXI.Graphics()
+        player_circ.lineStyle(2, collision_detected ? 0xff0000 : 0xffffff, 1);
+        player_circ.drawCircle(player.pos.x + player.size.x / 2, player.pos.y + player.size.y / 2, 40);
+        player_circ.endFill();
+        lineContainer.addChild(player_circ)
+        let next_pos_circ = new PIXI.Graphics()
+        next_pos_circ.lineStyle(2, collision_detected ? 0xff0000 : 0xffffff, 1);
+        next_pos_circ.drawCircle(next_pos.x + player.size.x / 2, next_pos.y + player.size.y / 2, 40);
+        next_pos_circ.endFill();
+        lineContainer.addChild(next_pos_circ)
+        collision_debug_container.addChild(lineContainer)
+      }
 
-      app.stage.addChild(lineContainer)
 
-      if (collision_detected) {
-        player.vel.x = -player.vel.x
-        player.vel.y = -player.vel.y
+      if (!collision_detected) {
+        player.pos = player.pos.add(player.vel)
       }
     }
   }
@@ -422,6 +430,8 @@ async function game() {
     if (!player.attacking) player.keyboardUpdate()
   }, 1000 / KEYBOARD_UPDATES_PS)
 
+  const collision_debug_container = new PIXI.Container()
+  let debug_on = false
   function collision_debug() {
     // debug collisions
     // draw circles
@@ -430,12 +440,22 @@ async function game() {
       circ.lineStyle(2, 0xff0000, 1);
       circ.drawCircle(vec.x, vec.y, 40);
       circ.endFill();
-      app.stage.addChild(circ)
+      collision_debug_container.addChild(circ)
     })
   }
 
-  collision_debug()
   player.init()
+
+  state.subscribe(s => {
+    if (s.debug.show && !debug_on) {
+      debug_on = true
+      collision_debug()
+      app.stage.addChild(collision_debug_container)
+    } else if (!s.debug.show && debug_on) {
+      debug_on = false
+      app.stage.removeChild(collision_debug_container)
+    }
+  })
 
   app.ticker.add((delta: number) => {
     ticks++
