@@ -561,6 +561,10 @@ async function game() {
           }
         })
       }
+      // if (vec.dist(next_pos.add(player.size.mul(new Vec(0.5, 0.5)))) < PLAYER_RADIUS + PROPS_RADIUS) {
+      //   color = 0xff0000
+      //   collision_detected = true
+      // }
       if (debug_on) {
         let player_circ = new PIXI.Graphics()
         player_circ.lineStyle(2, collision_detected ? 0xff0000 : 0xffffff, 1);
@@ -612,7 +616,9 @@ async function game() {
   }, 200)
 
   setInterval(() => {
-    zomb_1.controller()
+    zombs.forEach(zomb => {
+      zomb.controller()
+    })
 
     // apply natural slow down
     if (player.vel.x > 0) {
@@ -655,9 +661,14 @@ async function game() {
   }
 
   app.stage.addChild(background_container)
-  const zomb_1 = new Zombie(new Vec(100, 100), new Vec(PLAYER_W, PLAYER_H), new Vec(0, 0))
-  await zomb_1.init()
-  app.stage.addChild(zomb_1.zombie_container)
+
+  const zombs = []
+  for (let i = 0; i < 5; i++) {
+    const zomb = new Zombie(new Vec(100, 100), new Vec(PLAYER_W, PLAYER_H), new Vec(0, 0))
+    await zomb.init()
+    zombs.push(zomb)
+    app.stage.addChild(zomb.zombie_container)
+  }
   app.stage.addChild(player_container)
   player.init()
 
@@ -672,12 +683,17 @@ async function game() {
     }
   })
 
-
   app.ticker.add((delta: number) => {
     ticks++
 
-    zomb_1.update()
-    zomb_1.draw()
+    zombs.forEach(zomb => {
+      zomb.update()
+      zomb.draw()
+
+      if (zomb.pos.dist(player.pos.add(zomb.size.mul(new Vec(0.5, 0.5)))) < ZOMBIE_RADIUS + PROPS_RADIUS) {
+        if (!player.attacking) window.location.reload()
+      }
+    })
 
     player.update()
     player.draw()
