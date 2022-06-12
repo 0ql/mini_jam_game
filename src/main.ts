@@ -403,7 +403,7 @@ async function game() {
           footprints_container.removeChild(footprints_queue[0])
           footprints_queue.shift()
         }
-        if (rd() > 0.9 && (player.vel.x > 0 || player.vel.y > 0)) {
+        if (rd() > 0.9 && (player.vel.x !== 0 || player.vel.y !== 0)) {
           const new_footprint = new PIXI.Sprite(footprints_texture)
           new_footprint.x = player.pos.x + player.size.x / 2
           new_footprint.y = player.pos.y + player.size.y / 2
