@@ -198,6 +198,12 @@ async function game() {
   const footprints_texture: PIXI.Texture = app.renderer.generateTexture(footprints_graphics)
   const footprints_queue: PIXI.Sprite[] = []
 
+  const player_shadow_graphic = new PIXI.Graphics()
+  player_shadow_graphic.beginFill(0x000000)
+  player_shadow_graphic.alpha = 0.1
+  player_shadow_graphic.drawCircle(0, 0, PLAYER_W / 4)
+  const player_shadow_texture = app.renderer.generateTexture(player_shadow_graphic)
+
   const beach_chair_texture_array = await loadAnimatedSprite("", "beach_chair")
 
   // pick random spots on grid and calc dist
@@ -240,6 +246,10 @@ async function game() {
           sprite.y = y * TILE_HEIGHT
           sprite.width = TILE_WIDTH
           sprite.height = TILE_HEIGHT
+          if (rd() > 0.5) {
+            sprite.anchor.x = 1;     /* 0 = top, 0.5 = center, 1 = bottom */
+            sprite.scale.x *= -1;    /* flip vertically */
+          }
           sprite.animationSpeed = ANIMATION_SPEED
           sprite.play()
           row.push({
@@ -296,6 +306,7 @@ async function game() {
     size: new Vec(PLAYER_W, PLAYER_H),
     vel: new Vec(0, 0),
     attacking: false,
+    shadow_sprite: new PIXI.Sprite(player_shadow_texture),
     idle_sprite: new PIXI.AnimatedSprite(death_idle_texture_array),
     run_f_sprite: new PIXI.AnimatedSprite(death_run_f_texture_array),
     run_r_sprite: new PIXI.AnimatedSprite(death_run_r_texture_array),
@@ -323,12 +334,15 @@ async function game() {
       player.active_sprite.play()
     },
     init: () => {
+      player_container.addChild(player.shadow_sprite)
       player.setActiveAnim("idle_sprite")
       player.draw()
       player.active_sprite.animationSpeed = PLAYER_ANIMATION_SPEED
       player.active_sprite.play()
     },
     draw: () => {
+      player.shadow_sprite.x = player.pos.x + player.size.x / 4
+      player.shadow_sprite.y = player.pos.y + player.size.y * 0.65
       player.active_sprite.x = player.pos.x
       player.active_sprite.y = player.pos.y
       player.active_sprite.width = player.size.x
