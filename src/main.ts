@@ -63,6 +63,7 @@ async function game() {
   const PLAYER_DRAG_CONSTANT = 1.4
   const PLAYER_VELOCITY_CAP = 4
   const PLAYER_ACCELERATION = 2.8
+  const PLAYER_RADIUS = 20
 
   // ZOMBIE
   const ZOMBIE_W = 70
@@ -73,6 +74,7 @@ async function game() {
   const ZOMBIE_DRAG_CONSTANT = 1.4
   const ZOMBIE_VELOCITY_CAP = 4
   const ZOMBIE_ACCELERATION = 1.2
+  const ZOMBIE_RADIUS = 20
 
   // KEYBOARD
   const KEYBOARD_UPDATES_PS = 10
@@ -80,6 +82,7 @@ async function game() {
   // TERRAIN
   const RANDOM_LAND_SPOTS_COUNT = 4
   const MAX_TILE_SCORE_TO_BE_LAND = 30
+  const PROPS_RADIUS = 30
 
   const app = new PIXI.Application({
     width: X_TILES * TILE_WIDTH,
@@ -216,6 +219,9 @@ async function game() {
   const player_shadow_texture = app.renderer.generateTexture(player_shadow_graphic)
 
   const beach_chair_texture_array = await loadAnimatedSprite("", "beach_chair")
+  const ring_texture_array = await loadAnimatedSprite("", "ring")
+  const sand_castle_texture_array = await loadAnimatedSprite("", "sand_castle")
+  const schirm_texture_array = await loadAnimatedSprite("", "schirm")
 
   // pick random spots on grid and calc dist
   let random_land_spots: {
@@ -251,15 +257,24 @@ async function game() {
         })
         background_container.addChild(sprite);
 
-        if (rd() > 0.95) {
-          let sprite = new PIXI.AnimatedSprite(beach_chair_texture_array)
+        if (rd() > 0.9) {
+          let num = rd()
+          let sprite: PIXI.AnimatedSprite
+          if (num > 0.6) sprite = new PIXI.AnimatedSprite(beach_chair_texture_array)
+          else if (num > 0.4) sprite = new PIXI.AnimatedSprite(sand_castle_texture_array)
+          else if (num > 0.2) {
+            sprite = new PIXI.AnimatedSprite(schirm_texture_array)
+            sprite.anchor.x = 0.5;     /* 0 = top, 0.5 = center, 1 = bottom */
+            sprite.angle = 2
+          }
+          else if (num > 0) sprite = new PIXI.AnimatedSprite(ring_texture_array)
           sprite.x = x * TILE_WIDTH
           sprite.y = y * TILE_HEIGHT
           sprite.width = TILE_WIDTH
           sprite.height = TILE_HEIGHT
           if (rd() > 0.5) {
             sprite.anchor.x = 1;     /* 0 = top, 0.5 = center, 1 = bottom */
-            sprite.scale.x *= -1;    /* flip vertically */
+            sprite.scale.x *= -1;
           }
           sprite.animationSpeed = ANIMATION_SPEED
           sprite.play()
@@ -363,7 +378,7 @@ async function game() {
         static_circle_colliders.forEach(vec => {
           let color: number
           // calc dist
-          if (vec.dist(next_pos.add(this.size.mul(new Vec(0.5, 0.5)))) < 80) {
+          if (vec.dist(next_pos.add(this.size.mul(new Vec(0.5, 0.5)))) < ZOMBIE_RADIUS + PROPS_RADIUS) {
             color = 0xff0000
             collision_detected = true
           }
@@ -380,12 +395,12 @@ async function game() {
       if (debug_on) {
         let zombie_circ = new PIXI.Graphics()
         zombie_circ.lineStyle(2, collision_detected ? 0xff0000 : 0xffffff, 1);
-        zombie_circ.drawCircle(this.pos.x + this.size.x / 2, this.pos.y + this.size.y / 2, 40);
+        zombie_circ.drawCircle(this.pos.x + this.size.x / 2, this.pos.y + this.size.y / 2, ZOMBIE_RADIUS);
         zombie_circ.endFill();
         this.line_container.addChild(zombie_circ)
         let next_pos_circ = new PIXI.Graphics()
         next_pos_circ.lineStyle(2, collision_detected ? 0xff0000 : 0xffffff, 1);
-        next_pos_circ.drawCircle(next_pos.x + this.size.x / 2, next_pos.y + this.size.y / 2, 40);
+        next_pos_circ.drawCircle(next_pos.x + this.size.x / 2, next_pos.y + this.size.y / 2, ZOMBIE_RADIUS);
         next_pos_circ.endFill();
         this.line_container.addChild(next_pos_circ)
       }
@@ -532,7 +547,7 @@ async function game() {
         static_circle_colliders.forEach(vec => {
           let color: number
           // calc dist
-          if (vec.dist(next_pos.add(player.size.mul(new Vec(0.5, 0.5)))) < 80) {
+          if (vec.dist(next_pos.add(player.size.mul(new Vec(0.5, 0.5)))) < PLAYER_RADIUS + PROPS_RADIUS) {
             color = 0xff0000
             collision_detected = true
           }
@@ -549,12 +564,12 @@ async function game() {
       if (debug_on) {
         let player_circ = new PIXI.Graphics()
         player_circ.lineStyle(2, collision_detected ? 0xff0000 : 0xffffff, 1);
-        player_circ.drawCircle(player.pos.x + player.size.x / 2, player.pos.y + player.size.y / 2, 40);
+        player_circ.drawCircle(player.pos.x + player.size.x / 2, player.pos.y + player.size.y / 2, PLAYER_RADIUS);
         player_circ.endFill();
         lineContainer.addChild(player_circ)
         let next_pos_circ = new PIXI.Graphics()
         next_pos_circ.lineStyle(2, collision_detected ? 0xff0000 : 0xffffff, 1);
-        next_pos_circ.drawCircle(next_pos.x + player.size.x / 2, next_pos.y + player.size.y / 2, 40);
+        next_pos_circ.drawCircle(next_pos.x + player.size.x / 2, next_pos.y + player.size.y / 2, PLAYER_RADIUS);
         next_pos_circ.endFill();
         lineContainer.addChild(next_pos_circ)
         collision_debug_container.addChild(lineContainer)
@@ -633,7 +648,7 @@ async function game() {
     static_circle_colliders.forEach(vec => {
       const circ = new PIXI.Graphics()
       circ.lineStyle(2, 0xff0000, 1);
-      circ.drawCircle(vec.x, vec.y, 40);
+      circ.drawCircle(vec.x, vec.y, PROPS_RADIUS);
       circ.endFill();
       collision_debug_container.addChild(circ)
     })
