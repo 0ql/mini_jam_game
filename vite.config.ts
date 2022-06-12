@@ -4,9 +4,15 @@ import UnoCss from 'unocss/vite'
 import presetIcons from '@unocss/preset-icons'
 import presetUno from '@unocss/preset-uno'
 import { extractorSvelte } from '@unocss/core'
+import path from "path"
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  resolve: {
+    alias: {
+      'src': path.resolve(__dirname, './src')
+    },
+  },
   plugins: [
     UnoCss({
       extractors: [extractorSvelte],
