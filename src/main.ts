@@ -44,6 +44,7 @@ export default svelteApp
 
 async function game() {
   PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST
+  PIXI.settings.SORTABLE_CHILDREN = true
 
   const X_TILES = 12
   const Y_TILES = 12
@@ -162,10 +163,10 @@ async function game() {
       w: 16,
       h: 16,
       pixels: {
-        amount: 20,
+        amount: 100,
         w: 1,
         h: 1,
-        colors: [0x40adf5, 0x4ab2f7, 0x70c6ff]
+        colors: [0x40adf5, 0x4ab2f7, 0x70c6ff, 0x4daff0, 0x5abafa]
       }
     }
   })
@@ -187,6 +188,16 @@ async function game() {
     }
   })
 
+  // generate footprints texture
+  const footprints_container = new PIXI.Container()
+  footprints_container.zIndex = -1
+  let footprints_graphics: PIXI.Graphics = new PIXI.Graphics()
+  footprints_graphics.beginFill(0x000000)
+  footprints_graphics.alpha = 0.1
+  footprints_graphics.drawRect(0, 0, 10, 10)
+  const footprints_texture: PIXI.Texture = app.renderer.generateTexture(footprints_graphics)
+  const footprints_queue: PIXI.Sprite[] = []
+
   const beach_chair_texture_array = await loadAnimatedSprite("", "beach_chair")
 
   // pick random spots on grid and calc dist
@@ -201,6 +212,7 @@ async function game() {
     })
   }
 
+  const background_container = new PIXI.Container()
   // create terrain grid 
   const grid: Tile[][] = []
   for (let y = 0; y < Y_TILES; y++) {
@@ -220,7 +232,7 @@ async function game() {
         row.push({
           sprite: sprite
         })
-        app.stage.addChild(sprite);
+        background_container.addChild(sprite);
 
         if (rd() > 0.95) {
           let sprite = new PIXI.AnimatedSprite(beach_chair_texture_array)
@@ -233,7 +245,7 @@ async function game() {
           row.push({
             sprite: sprite
           })
-          app.stage.addChild(sprite);
+          background_container.addChild(sprite);
           static_circle_colliders.push(new Vec(sprite.x + sprite.width / 2, sprite.y + sprite.height / 2))
         }
       } else {
@@ -247,7 +259,7 @@ async function game() {
         row.push({
           sprite: sprite
         })
-        app.stage.addChild(sprite);
+        background_container.addChild(sprite);
       }
     }
     grid.push(row)
@@ -276,6 +288,7 @@ async function game() {
   })
 
   let lineContainer = new PIXI.Container()
+  const player_container = new PIXI.Container()
   // create player (death)
   const spawnlocation = random_land_spots[Math.floor(rd() * random_land_spots.length)]
   const player = {
@@ -302,9 +315,9 @@ async function game() {
       if (player.vel.y < -PLAYER_VELOCITY_CAP) player.vel.y = -PLAYER_VELOCITY_CAP
     },
     setActiveAnim: (name: string) => {
-      app.stage.removeChild(player.active_sprite)
+      player_container.removeChild(player.active_sprite)
       player.active_sprite = player[name]
-      app.stage.addChild(player.active_sprite)
+      player_container.addChild(player.active_sprite)
       player.active_sprite.animationSpeed = PLAYER_ANIMATION_SPEED
       player.active_sprite.loop = true
       player.active_sprite.play()
@@ -328,16 +341,16 @@ async function game() {
       if (keyboard.d) player.moveBy(new Vec(PLAYER_ACCELERATION, 0))
       if (keyboard[" "]) {
         player.attacking = true
-        app.stage.removeChild(player.active_sprite)
+        player_container.removeChild(player.active_sprite)
         player.active_sprite = player.f_attack_sprite
         player.active_sprite.loop = false
         player.active_sprite.animationSpeed = PLAYER_ATTACK_ANIMATION_SPEED
         player.active_sprite.onComplete = () => {
-          app.stage.removeChild(player.active_sprite)
+          player_container.removeChild(player.active_sprite)
           player.attacking = false
           player.setActiveAnim("idle_sprite")
         }
-        app.stage.addChild(player.active_sprite)
+        player_container.addChild(player.active_sprite)
         player.active_sprite.gotoAndPlay(0)
       }
     },
@@ -347,23 +360,29 @@ async function game() {
       collision_debug_container.removeChild(lineContainer)
       lineContainer = new PIXI.Container()
       let collision_detected = false
-      static_circle_colliders.forEach(vec => {
-        let color: number
-        // calc dist
-        if (vec.dist(next_pos.add(player.size.mul(new Vec(0.5, 0.5)))) < 80) {
-          color = 0xff0000
-          collision_detected = true
-        }
-        else color = 0xffffff
+      // collide with walls
+      if (next_pos.x < 0 || next_pos.x + player.size.x > TILE_WIDTH * X_TILES || next_pos.y < 0 || next_pos.y + player.size.y > TILE_HEIGHT * Y_TILES) {
+        collision_detected = true
+      } else {
+        // collide with chairs
+        static_circle_colliders.forEach(vec => {
+          let color: number
+          // calc dist
+          if (vec.dist(next_pos.add(player.size.mul(new Vec(0.5, 0.5)))) < 80) {
+            color = 0xff0000
+            collision_detected = true
+          }
+          else color = 0xffffff
 
-        if (debug_on) {
-          let line = new PIXI.Graphics();
-          lineContainer.addChild(line);
-          line.lineStyle(1, color)
-            .moveTo(player.pos.x + player.size.x / 2, player.pos.y + player.size.y / 2)
-            .lineTo(vec.x, vec.y);
-        }
-      })
+          if (debug_on) {
+            let line = new PIXI.Graphics();
+            lineContainer.addChild(line);
+            line.lineStyle(1, color)
+              .moveTo(player.pos.x + player.size.x / 2, player.pos.y + player.size.y / 2)
+              .lineTo(vec.x, vec.y);
+          }
+        })
+      }
       if (debug_on) {
         let player_circ = new PIXI.Graphics()
         player_circ.lineStyle(2, collision_detected ? 0xff0000 : 0xffffff, 1);
@@ -378,8 +397,20 @@ async function game() {
         collision_debug_container.addChild(lineContainer)
       }
 
-
       if (!collision_detected) {
+        player_container.removeChild(footprints_container)
+        if (footprints_queue.length > 20) {
+          footprints_container.removeChild(footprints_queue[0])
+          footprints_queue.shift()
+        }
+        if (rd() > 0.9 && (player.vel.x > 0 || player.vel.y > 0)) {
+          const new_footprint = new PIXI.Sprite(footprints_texture)
+          new_footprint.x = player.pos.x + player.size.x / 2
+          new_footprint.y = player.pos.y + player.size.y / 2
+          footprints_container.addChild(new_footprint)
+          footprints_queue.push(new_footprint)
+        }
+        player_container.addChild(footprints_container)
         player.pos = player.pos.add(player.vel)
       }
     }
@@ -444,6 +475,8 @@ async function game() {
     })
   }
 
+  app.stage.addChild(background_container)
+  app.stage.addChild(player_container)
   player.init()
 
   state.subscribe(s => {
